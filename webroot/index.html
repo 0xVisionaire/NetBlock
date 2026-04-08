@@ -166,6 +166,18 @@ input:checked+.toggle-slider:before{transform:translateX(20px)}
 
 .sheet-cancel:active{background:rgba(255,255,255,0.1)}
 
+.webview-modal{position:fixed;inset:0;background:var(--bg);z-index:2000;display:none;flex-direction:column}
+
+.webview-modal.show{display:flex}
+
+.webview-header{height:56px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:0.5px solid var(--separator)}
+
+.webview-title{font-size:17px;font-weight:600;color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:70%}
+
+.webview-close{width:36px;height:36px;border-radius:10px;background:var(--bg-tertiary);border:0.5px solid var(--separator);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}
+
+.webview-frame{flex:1;width:100%;border:none;background:var(--bg)}
+
 ::-webkit-scrollbar{display:none}
 </style>
 </head>
@@ -299,6 +311,14 @@ input:checked+.toggle-slider:before{transform:translateX(20px)}
   <button class="sheet-cancel" onclick="hideClearSheet()">Cancel</button>
 </div>
 
+<div class="webview-modal" id="webview-modal">
+  <div class="webview-header">
+    <div class="webview-title" id="webview-title">Loading...</div>
+    <button class="webview-close" onclick="closeWebview()">✕</button>
+  </div>
+  <iframe class="webview-frame" id="webview-frame" src=""></iframe>
+</div>
+
 <script>
 const BLOCK_FILE="/data/adb/netblock/blocked_uids.txt";
 const BACKUP_DIR="/sdcard/Download";
@@ -371,7 +391,30 @@ function createShortcut(){
 }
 
 function openSupport(){
-  openLink("https://meowdump.github.io");
+  openWebview("https://meowdump.github.io","Support");
+}
+
+function closeWebview(){
+  const frame=document.getElementById("webview-frame");
+  frame.onerror=null;
+  frame.src="";
+  document.getElementById("webview-modal").classList.remove("show");
+}
+
+function openWebview(url,title){
+  const modal=document.getElementById("webview-modal");
+  const frame=document.getElementById("webview-frame");
+  const titleEl=document.getElementById("webview-title");
+  titleEl.textContent=title||"Loading...";
+  
+  frame.onerror=function(){
+    frame.onerror=null;
+    modal.classList.remove("show");
+    openLink(url);
+  };
+  
+  frame.src=url;
+  modal.classList.add("show");
 }
 
 function openLink(url){

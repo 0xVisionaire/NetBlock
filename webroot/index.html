@@ -58,7 +58,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Ro
 
 .stat-desc{font-size:11px;color:var(--text-secondary);margin-top:4px;text-transform:uppercase;letter-spacing:0.05em}
 
-.action-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
+.action-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:16px}
 
 .action-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 4px;background:rgba(255,255,255,0.05);border:0.5px solid var(--separator);border-radius:14px;cursor:pointer;transition:all 0.2s}
 
@@ -229,6 +229,12 @@ input:checked+.toggle-slider:before{transform:translateX(20px)}
   </div>
   
   <div class="action-grid">
+    <button class="action-btn" onclick="selectAllApps()">
+      <div class="action-icon">
+        <span class="material-icons-round">check_box</span>
+      </div>
+      <span>Select All</span>
+    </button>
     <button class="action-btn" onclick="loadApps()">
       <div class="action-icon">
         <span class="material-icons-round">sync</span>
@@ -555,6 +561,29 @@ function filterApps(){
   const filter=document.getElementById("search").value.toLowerCase();
   filteredApps=filter?allApps.filter(a=>a.name.toLowerCase().includes(filter)||a.package.toLowerCase().includes(filter)):[...allApps];
   renderApps(filteredApps)
+}
+
+function selectAllApps(){
+  const toBlock=filteredApps.filter(a=>!a.blocked);
+  if(toBlock.length===0){toast("All apps already blocked");return}
+  toast("Blocking "+toBlock.length+" apps...");
+  let done=0;
+  const total=toBlock.length;
+  toBlock.forEach(app=>{
+    blockedMap.set(app.uid,app.package);
+    const line=app.uid+"|"+app.package+"\\n";
+    const cmd="printf '"+line+"' >> "+BLOCK_FILE;
+    runShell(cmd,(c)=>{
+      if(c===0){
+        runShell("iptables -C NETBLOCK -m owner --uid-owner "+app.uid+" -j DROP 2>/dev/null || iptables -A NETBLOCK -m owner --uid-owner "+app.uid+" -j DROP",()=>{
+          runShell("ip6tables -C NETBLOCK -m owner --uid-owner "+app.uid+" -j DROP 2>/dev/null || ip6tables -A NETBLOCK -m owner --uid-owner "+app.uid+" -j DROP",()=>{
+            done++;
+            if(done===total){toast("Blocked "+total+" apps");updateStats();updateStatus();countSystemBlocked();renderApps(filteredApps)}
+          })
+        })
+      }else{done++}
+    })
+  })
 }
 
 function updateStats(){

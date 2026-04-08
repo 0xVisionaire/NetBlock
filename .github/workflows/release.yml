@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP
+        run: |
+          zip -r NetBlock-${{ steps.version.outputs.VERSION }}.zip . \
+            -x ".git/*" \
+            ".github/workflows/*" \
+            "README.md"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: NetBlock-${{ steps.version.outputs.VERSION }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update release.json
+        run: |
+          DATE=$(date +%d-%m-%Y)
+          cat > release.json << 'EOF'
+          {
+            "versionCode": ${{ github.run_number }},
+            "version": "${{ steps.version.outputs.VERSION }}",
+            "zipUrl": "https://github.com/0xVisionaire/NetBlock/releases/download/${{ steps.version.outputs.VERSION }}/NetBlock-${{ steps.version.outputs.VERSION }}.zip",
+            "changelog": "https://raw.githubusercontent.com/0xVisionaire/NetBlock/refs/heads/main/changelog.md"
+          }
+          EOF
+
+      - name: Commit release.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update release.json for ${{ steps.version.outputs.VERSION }}"
+          file_pattern: release.json
+          push_options: '--force'
